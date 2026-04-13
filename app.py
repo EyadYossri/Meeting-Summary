@@ -19,22 +19,37 @@ if st.button("Start Summarization"):
     if uploaded_file is None:
         st.error("Please upload a video file")
     else:
-        st.info("Running pipeline...")
+        progress = st.progress(0)
+        status = st.empty()
 
+        status.text("Saving video...")
         os.makedirs("uploads", exist_ok=True)
-        video_path = os.path.join("uploads", uploaded_file.name)
 
+        video_path = os.path.join("uploads", uploaded_file.name)
         with open(video_path, "wb") as f:
             f.write(uploaded_file.read())
 
+        progress.progress(20)
+
+        status.text("Extracting audio...")
         audio_path = "outputs/audio.mp3"
         os.makedirs("outputs", exist_ok=True)
 
         extract_audio(video_path, audio_path)
 
+        progress.progress(40)
+
+        status.text("Transcribing audio...")
         text = transcribe(audio_path)
 
+        progress.progress(70)
+
+        status.text("Generating summary...")
         summary = generate_summary(text, model="llama3.1")
+
+        progress.progress(85)
+
+        status.text("Sending email...")
 
         email_body = f"""
 Dear,
@@ -55,5 +70,8 @@ AI Meeting Assistant
             "Meeting Summary",
             email_body
         )
+
+        progress.progress(100)
+        status.text("Done!")
 
         st.success("Process completed successfully!")
