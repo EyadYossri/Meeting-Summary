@@ -41,6 +41,6 @@ Built using Python, Streamlit, Whisper, and LLaMA (via Ollama).
 ## 📦 Installation
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/Meeting-Summary.git
+git clone https://github.com/EyadYossri/Meeting-Summary.git
 cd Meeting-Summary
 pip install -r requirements.txt
