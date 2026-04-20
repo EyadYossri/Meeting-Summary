@@ -1,22 +1,30 @@
 import subprocess
 import os
 
-def extract_audio(video_path, output_path):
+
+def extract_audio(video_path, output_path="outputs/audio.wav"):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     command = [
         "ffmpeg",
+        "-y",
         "-i", video_path,
-        "-q:a", "0",
-        "-map", "a",
+        "-vn",
+        "-acodec", "pcm_s16le", 
+        "-ar", "16000",         
+        "-ac", "1",             
         output_path
     ]
 
-    result = subprocess.run(command, capture_output=True, text=True)
+    result = subprocess.run(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+    )
 
     if result.returncode != 0:
-        print("FFmpeg Error:\n", result.stderr)
-        raise Exception("Audio extraction failed!")
+        raise Exception(f"FFmpeg Error:\n{result.stderr}")
 
     if not os.path.exists(output_path):
         raise Exception("Audio file was not created!")
