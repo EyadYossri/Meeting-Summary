@@ -32,7 +32,7 @@ if st.button("Start Summarization"):
         progress.progress(20)
 
         status.text("Extracting audio...")
-        audio_path = "outputs/audio.mp3"
+        audio_path = "outputs/audio.wav"
         os.makedirs("outputs", exist_ok=True)
 
         extract_audio(video_path, audio_path)
