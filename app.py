@@ -45,7 +45,12 @@ if st.button("Start Summarization"):
         progress.progress(70)
 
         status.text("Generating summary...")
-        summary = generate_summary(text, model="llama3.1")
+        result = generate_summary(text, model="llama3.1")
+        # Extract title (first line)
+        lines = result.split("\n")
+        title = lines[0].replace("-", "").strip() if len(lines) > 1 else "Meeting Summary"
+
+        summary = result
 
         progress.progress(85)
 
@@ -67,7 +72,7 @@ AI Meeting Assistant
             sender_email,
             sender_password,
             receiver_email,
-            "Meeting Summary",
+            title,
             email_body
         )
 
