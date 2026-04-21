@@ -10,9 +10,11 @@ def extract_audio(video_path, output_path="outputs/audio.wav"):
         "-y",
         "-i", video_path,
         "-vn",
-        "-acodec", "pcm_s16le", 
-        "-ar", "16000",         
-        "-ac", "1",             
+        "-acodec", "pcm_s16le",
+        "-ar", "16000",
+        "-ac", "1",
+        "-threads", "0",
+        "-af", "silenceremove=1:0:-50dB",
         output_path
     ]
 
