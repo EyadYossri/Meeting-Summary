@@ -10,6 +10,8 @@ Analyze the following meeting transcript and generate a clear, structured summar
 
 Return the output EXACTLY in this format:
 
+A short professional title (max 8 words) (Donot use * or " in the title, just write the title without any formatting)
+
 Key Topics:
 - bullet points
 
