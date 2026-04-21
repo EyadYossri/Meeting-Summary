@@ -45,8 +45,8 @@ if st.button("Start Summarization"):
         progress.progress(70)
 
         status.text("Generating summary...")
-        result = generate_summary(text, model="llama3.1")
-        # Extract title (first line)
+        result = generate_summary(text, model="llama-3.1-8b-instant", stream_callback=on_token)
+        
         lines = result.split("\n")
         title = lines[0].replace("-", "").strip() if len(lines) > 1 else "Meeting Summary"
 
