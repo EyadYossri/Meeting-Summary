@@ -9,6 +9,7 @@ hf_token = os.getenv("HF_TOKEN")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
+<<<<<<< HEAD
 compute_type = "float16" if device == "cuda" else "int8"
 
 model = whisperx.load_model("base", device, compute_type=compute_type)
@@ -33,12 +34,28 @@ def transcribe(audio_path):
         _align_model_cache[lang] = (model_a, metadata)
     else:
         model_a, metadata = _align_model_cache[lang]
+=======
+# Load WhisperX model
+model = whisperx.load_model("base", device)
+
+
+def transcribe(audio_path):
+    # Step 1: Transcribe
+    result = model.transcribe(audio_path)
+
+    # Step 2: Align words (better timestamps)
+    model_a, metadata = whisperx.load_align_model(
+        language_code=result["language"],
+        device=device
+    )
+>>>>>>> ab7e773 (update requirements)
 
     result = whisperx.align(
         result["segments"],
         model_a,
         metadata,
         audio_path,
+<<<<<<< HEAD
         device,
         return_char_alignments=False
     )
@@ -54,3 +71,27 @@ def transcribe(audio_path):
         transcript += f"{speaker}: {text}\n"
 
     return transcript
+=======
+        device
+    )
+
+    # Step 3: Diarization (speaker separation)
+    diarize_model = DiarizationPipeline(
+        token=hf_token  # <-- REQUIRED
+    )
+
+    diarize_segments = diarize_model(audio_path)
+
+    result = whisperx.assign_word_speakers(diarize_segments, result)
+
+    # Step 4: Build speaker-aware transcript
+    transcript = ""
+
+    for seg in result["segments"]:
+        speaker = seg.get("speaker", "UNKNOWN")
+        text = seg["text"]
+
+        transcript += f"{speaker}: {text}\n"
+
+    return transcript
+>>>>>>> ab7e773 (update requirements)

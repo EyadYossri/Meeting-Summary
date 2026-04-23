@@ -1,8 +1,0 @@
-ffmpeg-python
-requests
-streamlit
-torchaudio
-torch
-moviepy
-whisperx
-dotenv
