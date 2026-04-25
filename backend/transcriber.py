@@ -1,65 +1,44 @@
-import whisperx
-import torch
 import os
-import gc
-import multiprocessing
 from dotenv import load_dotenv
-from whisperx.diarize import DiarizationPipeline
+from deepgram import (
+    DeepgramClient,
+    PrerecordedOptions,
+    FileSource,
+)
 
 load_dotenv()
-hf_token = os.getenv("HF_TOKEN")
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-compute_type = "float16" if device == "cuda" else "int8"
-
-model = whisperx.load_model("base", device, compute_type=compute_type)
-
-def run_diarization(audio_path, token, dev, return_dict):
-    diarize_model = DiarizationPipeline(use_auth_token=token, device=dev)
-    segments = diarize_model(audio_path)
-    return_dict['segments'] = segments
+API_KEY = os.getenv("DEEPGRAM_API_KEY")
 
 def transcribe(audio_path):
-    batch_size = 16 if device == "cuda" else 4
+    try:
+        deepgram = DeepgramClient(API_KEY)
 
-    result = model.transcribe(audio_path, batch_size=batch_size)
-    lang = result["language"]
+        with open(audio_path, "rb") as file:
+            buffer_data = file.read()
 
-    model_a, metadata = whisperx.load_align_model(
-        language_code=lang, 
-        device=device
-    )
-    
-    result = whisperx.align(
-        result["segments"],
-        model_a,
-        metadata,
-        audio_path,
-        device,
-        return_char_alignments=False
-    )
-    
-    del model_a
-    gc.collect()
+        payload: FileSource = {
+            "buffer": buffer_data,
+        }
 
-    manager = multiprocessing.Manager()
-    return_dict = manager.dict()
-    
-    p = multiprocessing.Process(
-        target=run_diarization, 
-        args=(audio_path, hf_token, device, return_dict)
-    )
-    p.start()
-    p.join()
-    
-    diarize_segments = return_dict['segments']
+        options = PrerecordedOptions(
+            model="nova-2",
+            smart_format=True,
+            diarize=True,   
+        )
 
-    result = whisperx.assign_word_speakers(diarize_segments, result)
+        response = deepgram.listen.rest.v("1").transcribe_file(payload, options)
 
-    transcript = ""
-    for seg in result["segments"]:
-        speaker = seg.get("speaker", "UNKNOWN")
-        text = seg["text"].strip()
-        transcript += f"{speaker}: {text}\n"
+        transcript = ""
+        words = response.results.channels[0].alternatives[0].words
+        
+        for word in words:
+            speaker = f"SPEAKER_{word.speaker}" if word.speaker is not None else "UNKNOWN"
+            
+            text = word.punctuated_word or word.word
+            transcript += f"{speaker}: {text}\n"
 
-    return transcript
+        return transcript
+
+    except Exception as e:
+        return f"Error transcribing audio: {e}"
