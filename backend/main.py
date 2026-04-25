@@ -45,8 +45,6 @@ def _error(message: str) -> str:
 @app.post("/summarize")
 async def summarize(
     video: UploadFile = File(...),
-    sender_email: str = Form(...),
-    sender_password: str = Form(...),
     receiver_email: str = Form(...),
 ):
 
@@ -68,12 +66,10 @@ async def summarize(
             transcript = await asyncio.to_thread(transcribe, audio_path)
 
             # ==========================================
-            # NEW: DEBUG & SAFETY CHECK
+            # DEBUG & SAFETY CHECK
             # ==========================================
-            # Print to Railway logs
             print(f"\n--- RAW TRANSCRIPT OUTPUT ---\n{transcript}\n-----------------------------\n")
             
-            # Stop the process if transcription failed or returned nothing
             if not transcript or "Error transcribing audio" in transcript:
                 raise Exception(f"Transcription failed. Deepgram returned: {transcript}")
             # ==========================================
@@ -128,8 +124,6 @@ async def summarize(
 
             await asyncio.to_thread(
                 send_email,
-                sender_email,
-                sender_password,
                 receiver_email,
                 title,
                 email_body,
