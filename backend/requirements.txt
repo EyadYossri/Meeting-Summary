@@ -1,9 +1,11 @@
---extra-index-url https://download.pytorch.org/whl/cpu
+--index-url https://download.pytorch.org/whl/cpu
+torch==2.2.2
+torchaudio==2.2.2
+torchvision==0.17.2
 fastapi
 uvicorn[standard]
 python-multipart
 requests
 python-dotenv
 whisperx
-torch
 groq
