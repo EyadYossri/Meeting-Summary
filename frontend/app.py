@@ -9,15 +9,13 @@ st.title("🎥 Meeting Summarizer AI")
 
 uploaded_file = st.file_uploader("Upload Meeting Video", type=["mp4", "mov", "avi"])
 
-sender_email = st.text_input("Enter sender Gmail:")
-sender_password = st.text_input("Enter app password:", type="password")
 receiver_email = st.text_input("Enter receiver email:")
 
 if st.button("Start Summarization"):
 
     if uploaded_file is None:
         st.error("Please upload a video file.")
-    elif not sender_email or not sender_password or not receiver_email:
+    elif not receiver_email:
         st.error("Please fill in all email fields.")
     else:
         progress = st.progress(0)
@@ -30,8 +28,6 @@ if st.button("Start Summarization"):
                 f"{BACKEND_URL}/summarize",
                 files={"video": (uploaded_file.name, uploaded_file, uploaded_file.type)},
                 data={
-                    "sender_email": sender_email,
-                    "sender_password": sender_password,
                     "receiver_email": receiver_email,
                 },
                 stream=True,
