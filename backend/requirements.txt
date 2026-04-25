@@ -15,3 +15,5 @@ requests
 python-dotenv
 whisperx
 groq
+
+huggingface_hub<0.22.0
