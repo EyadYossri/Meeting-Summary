@@ -1,28 +1,21 @@
-import smtplib
-import socket
-from email.mime.text import MIMEText
+import os
+import resend
 
-original_getaddrinfo = socket.getaddrinfo
-
-def force_ipv4_getaddrinfo(*args, **kwargs):
-    responses = original_getaddrinfo(*args, **kwargs)
-    return [res for res in responses if res[0] == socket.AF_INET]
-
-socket.getaddrinfo = force_ipv4_getaddrinfo
+resend.api_key = os.getenv("RESEND_API_KEY")
 
 def send_email(sender_email, sender_password, receiver_email, subject, body):
     try:
-        msg = MIMEText(body)
-        msg['Subject'] = subject
-        msg['From'] = sender_email
-        msg['To'] = receiver_email
+        
+        params = {
+            "from": "AI Meeting Assistant <onboarding@resend.dev>",
+            "to": [receiver_email],
+            "subject": subject,
+            "text": body,
+        }
 
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=15) as server:
-            
-            server.set_debuglevel(1) 
-            
-            server.login(sender_email, sender_password)
-            server.send_message(msg)
-            
+        email_response = resend.Emails.send(params)
+        
+        print(f"Email sent successfully! ID: {email_response.get('id')}")
+
     except Exception as e:
-        raise Exception(f"SMTP Error: {str(e)}")
+        raise Exception(f"Email API Error: {str(e)}")
