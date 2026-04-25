@@ -15,7 +15,7 @@ model = whisperx.load_model("base", device, compute_type=compute_type)
 
 _align_model_cache = {}
 
-_diarize_model = DiarizationPipeline(token=hf_token, device=device)
+_diarize_model = DiarizationPipeline(use_auth_token=hf_token, device=device)
 
 
 def transcribe(audio_path):
