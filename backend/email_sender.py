@@ -8,7 +8,7 @@ def send_email(sender_email, sender_password, receiver_email, subject, body):
         msg['From'] = sender_email
         msg['To'] = receiver_email
 
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=10) as server:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=15, source_address=('0.0.0.0', 0)) as server:
             
             server.set_debuglevel(1) 
             
