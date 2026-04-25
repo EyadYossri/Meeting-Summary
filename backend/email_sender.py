@@ -3,7 +3,7 @@ import resend
 
 resend.api_key = os.getenv("RESEND_API_KEY")
 
-def send_email(sender_email, sender_password, receiver_email, subject, body):
+def send_email(receiver_email, subject, body):
     try:
         
         params = {
