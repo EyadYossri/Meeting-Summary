@@ -130,7 +130,6 @@ async def summarize(
             )
 
             yield _progress(100, "Done!")
-            yield _done(title, result)
 
         except Exception as e:
             yield _error(str(e))
