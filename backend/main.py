@@ -67,6 +67,17 @@ async def summarize(
             yield _progress(45, "Transcribing audio (this may take a moment)...")
             transcript = await asyncio.to_thread(transcribe, audio_path)
 
+            # ==========================================
+            # NEW: DEBUG & SAFETY CHECK
+            # ==========================================
+            # Print to Railway logs
+            print(f"\n--- RAW TRANSCRIPT OUTPUT ---\n{transcript}\n-----------------------------\n")
+            
+            # Stop the process if transcription failed or returned nothing
+            if not transcript or "Error transcribing audio" in transcript:
+                raise Exception(f"Transcription failed. Deepgram returned: {transcript}")
+            # ==========================================
+
             yield _progress(65, "Generating summary...")
 
             summary_tokens = []
