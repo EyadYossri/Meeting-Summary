@@ -4,11 +4,9 @@ from deepgram import DeepgramClient
 
 load_dotenv()
 
-API_KEY = os.getenv("DEEPGRAM_API_KEY")
-
 def transcribe(audio_path):
     try:
-        deepgram = DeepgramClient(API_KEY)
+        deepgram = DeepgramClient()
 
         with open(audio_path, "rb") as file:
             buffer_data = file.read()
