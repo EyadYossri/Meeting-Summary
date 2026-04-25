@@ -1,6 +1,3 @@
-[build]
-builder = "nixpacks"
-
 [phases.setup]
 aptPkgs = [
   "ffmpeg",
@@ -10,6 +7,5 @@ aptPkgs = [
   "libswresample-dev"
 ]
 
-[deploy]
-startCommand = "uvicorn main:app --host 0.0.0.0 --port $PORT"
-restartPolicyType = "on_failure"
+[start]
+cmd = "uvicorn main:app --host 0.0.0.0 --port $PORT"
