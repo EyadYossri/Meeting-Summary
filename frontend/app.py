@@ -51,12 +51,21 @@ if st.button("Start Summarization"):
 
                     elif event["type"] == "token":
                         summary_text += event["value"]
-                        summary_box.markdown(summary_text)
+                        summary_box.markdown(
+                            f"<div dir='rtl' style='text-align: right;'>\n\n{summary_text}\n\n</div>", 
+                            unsafe_allow_html=True
+                        )
 
                     elif event["type"] == "done":
-                        st.success("Process completed successfully!")
-                        st.markdown("### 📋 Final Summary")
-                        st.markdown(event["summary"])
+                        st.success("تم الانتهاء بنجاح!")
+                        st.markdown(
+                            "<h3 style='text-align: right; direction: rtl;'>📋 الملخص النهائي</h3>", 
+                            unsafe_allow_html=True
+                        )
+                        st.markdown(
+                            f"<div dir='rtl' style='text-align: right;'>\n\n{event['summary']}\n\n</div>", 
+                            unsafe_allow_html=True
+                        )
 
                     elif event["type"] == "error":
                         st.error(f"Error: {event['message']}")
