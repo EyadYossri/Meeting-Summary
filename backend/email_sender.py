@@ -10,7 +10,7 @@ def send_email(receiver_email, subject, body):
             "from": "AI Meeting Assistant <onboarding@resend.dev>",
             "to": [receiver_email],
             "subject": subject,
-            "text": body,
+            "html": body,
         }
 
         email_response = resend.Emails.send(params)
