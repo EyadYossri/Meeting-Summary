@@ -1,5 +1,6 @@
 import os
 import requests
+import json
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -9,31 +10,68 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 DEFAULT_MODEL = "llama-3.1-8b-instant"
 
+CHUNK_SIZE = 15000 
+
+
+def summarize_chunk(chunk_text, model=DEFAULT_MODEL):
+    """
+    Map Step: هذه الدالة تقوم بتلخيص كل جزء بشكل سريع بدون تنسيق نهائي
+    للحفاظ على المعلومات من الضياع.
+    """
+    prompt = f"""أنت مساعد ذكاء اصطناعي. سأعطيك جزءاً من تفريغ لاجتماع طويل.
+قم بتلخيص هذا الجزء بدقة، واستخرج أهم النقاط والقرارات والمهام المذكورة فيه. ركز على التفاصيل ولا تضيع أي معلومة مهمة.
+
+النص:
+{chunk_text}"""
+
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.3,
+        "max_tokens": 1024,
+    }
+    response = requests.post(GROQ_URL, headers=headers, json=payload, timeout=120)
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"]
+
 
 def generate_summary(text, model=DEFAULT_MODEL, stream_callback=None):
-    """
-    Generate a meeting summary via the Groq API (llama3.1).
-
-    Args:
-        text: Meeting transcript
-        model: Groq model name
-        stream_callback: Optional callable(str) — called with each streamed token.
-    """
     if not GROQ_API_KEY:
         raise ValueError("GROQ_API_KEY is not set. Add it to your .env file.")
 
+    use_stream = stream_callback is not None
+    
+    if len(text) > CHUNK_SIZE:
+        if use_stream:
+            stream_callback("⏳ الميتينج طويل جداً.. جاري تقسيمه وتحليله بالذكاء الاصطناعي (Map-Reduce)...\n\n")
+        
+        chunks = [text[i:i + CHUNK_SIZE] for i in range(0, len(text), CHUNK_SIZE)]
+        chunk_summaries = []
+        
+        for chunk in chunks:
+            summary = summarize_chunk(chunk, model)
+            chunk_summaries.append(summary)
+        
+        final_text_to_summarize = "\n\n--- ملخصات أجزاء الاجتماع ---\n\n".join(chunk_summaries)
+    else:
+        final_text_to_summarize = text
+
     prompt = f"""أنت مساعد ذكاء اصطناعي محترف متخصص في تلخيص الاجتماعات.
-سأقوم بإعطائك تفريغ نصي لاجتماع يحتوي على متحدثين بأسماء افتراضية مثل SPEAKER_0 و SPEAKER_1.
+سأقوم بإعطائك إما (تفريغ نصي) أو (مجموعة ملخصات لاجتماع طويل). يحتوي النص على متحدثين بأسماء افتراضية مثل SPEAKER_0.
 
 مهمتك الأولى (تحليل المتحدثين):
-- حلل سياق الكلام لمعرفة الأسماء الحقيقية للمتحدثين (مثلاً إذا قال أحدهم "أهلاً يا أحمد"، فاستنتج أن المتحدث الآخر هو أحمد).
-- إذا لم يُذكر الاسم صراحةً، خمن مسماه الوظيفي من طبيعة كلامه (مثلاً: مدير المشروع، العميل، المطور، مسؤول الموارد البشرية).
-- إياك أن تستخدم كلمة "SPEAKER" في الملخص النهائي، استبدلها دائماً بالأسماء أو المسميات الوظيفية التي استنتجتها.
+- حلل سياق الكلام لمعرفة الأسماء الحقيقية للمتحدثين (إذا تم ذكرها).
+- إذا لم يُذكر الاسم صراحةً، خمن مسماه الوظيفي.
+- إياك أن تستخدم كلمة "SPEAKER" في الملخص النهائي.
 
 مهمتك الثانية (التلخيص):
 اكتب ملخصاً احترافياً ومنظماً "باللغة العربية" بالصيغة التالية بالضبط:
 
-عنوان احترافي قصير (بحد أقصى 8 كلمات، بدون أي علامات تنصيص أو نجوم)
+عنوان احترافي قصير (بحد أقصى 8 كلمات، بدون أي علامات تنصيص)
 
 أهم النقاط:
 - (نقاط)
@@ -49,15 +87,11 @@ def generate_summary(text, model=DEFAULT_MODEL, stream_callback=None):
 
 القواعد:
 - كن موجزاً واحترافياً.
-- لا تكرر المعلومات.
-- لا تضف معلومات غير موجودة في النص.
-- إذا لم تتوفر معلومات لقسم معين، تجاهله ولا تخترع بيانات.
-- لا تكتب أي مقدمات أو ردود مثل "إليك الملخص" أو "حسناً"، ابدأ بالعنوان مباشرة.
+- لا تكرر المعلومات، ولا تضف معلومات غير موجودة.
+- ابدأ بالعنوان مباشرة ولا تكتب أي مقدمات.
 
-التفريغ النصي للاجتماع:
-{text}"""
-
-    use_stream = stream_callback is not None
+النص المطلوب تلخيصه:
+{final_text_to_summarize}"""
 
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -82,7 +116,6 @@ def generate_summary(text, model=DEFAULT_MODEL, stream_callback=None):
     response.raise_for_status()
 
     if use_stream:
-        import json
         full_response = ""
         for line in response.iter_lines():
             if not line:
