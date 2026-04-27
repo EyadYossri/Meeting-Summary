@@ -13,37 +13,26 @@ from transcriber import transcribe
 from llm_summarizer import generate_summary
 from email_sender import send_email
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    import transcriber
     yield
 
-
 app = FastAPI(title="Meeting Summarizer API", lifespan=lifespan)
-
 
 def _sse(data: dict) -> str:
     return f"data: {json.dumps(data)}\n\n"
 
-
 def _progress(value: int, status: str) -> str:
     return _sse({"type": "progress", "value": value, "status": status})
-
 
 def _token(value: str) -> str:
     return _sse({"type": "token", "value": value})
 
-
 def _done(title: str, summary: str) -> str:
     return _sse({"type": "done", "title": title, "summary": summary})
 
-
 def _error(message: str) -> str:
     return _sse({"type": "error", "message": message})
-
-
-from fastapi import Request
 
 @app.post("/summarize")
 async def summarize(
@@ -53,7 +42,8 @@ async def summarize(
 
     async def event_stream():
         tmp_dir = tempfile.mkdtemp()
-        video_path = os.path.join(tmp_dir, video.filename)
+        video_filename = video.filename if video.filename else "input_video"
+        video_path = os.path.join(tmp_dir, video_filename)
         audio_path = os.path.join(tmp_dir, "audio.wav")
 
         try:
@@ -62,13 +52,10 @@ async def summarize(
                 while chunk := await video.read(8 * 1024 * 1024):
                     f.write(chunk)
 
-                yield _progress(25, "🎵 جاري استخراج الصوت...")
-                await asyncio.to_thread(extract_audio, video_path, audio_path)
-            
-            else:
-                raise Exception("لا يوجد فيديو أو رابط يوتيوب!")
+            yield _progress(25, "🎵 جاري استخراج الصوت...")
+            await asyncio.to_thread(extract_audio, video_path, audio_path)
 
-            yield _progress(45, "🧠 جاري تفريغ الصوت وتحليل المتحدثين (قد يستغرق دقائق)...")
+            yield _progress(45, "🧠 جاري تفريغ الصوت وتحليل المتحدثين...")
             transcript = await asyncio.to_thread(transcribe, audio_path)
             
             if not transcript or "Error" in transcript:
@@ -76,12 +63,6 @@ async def summarize(
 
             yield _progress(65, "✨ جاري التلخيص بالذكاء الاصطناعي...")
             
-            
-            summary_tokens = []
-
-            def on_token(token: str):
-                summary_tokens.append(token)
-
             token_queue: asyncio.Queue = asyncio.Queue()
             loop = asyncio.get_event_loop()
 
@@ -110,10 +91,10 @@ async def summarize(
 
             result = await summarizer_task
 
-            yield _progress(90, "📧 Sending email...")
+            yield _progress(90, "📧 جاري إرسال الملخص للإيميل...")
 
             lines = [l for l in result.split("\n") if l.strip()]
-            title = lines[0].replace("-", "").strip() if lines else "ملخص الاجتماع"
+            title = lines[0].replace("-", "").strip() if lines else "Meeting Summary"
 
             html_result = markdown.markdown(result)
 
@@ -138,14 +119,8 @@ async def summarize(
                 email_body,
             )
 
-            await asyncio.to_thread(
-                send_email,
-                receiver_email,
-                title,
-                email_body,
-            )
-
             yield _progress(100, "Done!")
+            yield _done(title, result)
 
         except Exception as e:
             yield _error(str(e))
@@ -154,7 +129,6 @@ async def summarize(
             shutil.rmtree(tmp_dir, ignore_errors=True)
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
-
 
 @app.get("/health")
 def health():
