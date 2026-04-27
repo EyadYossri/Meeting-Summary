@@ -4,6 +4,7 @@ import asyncio
 import tempfile
 import shutil
 import markdown
+import yt_dlp
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
@@ -43,40 +44,65 @@ def _error(message: str) -> str:
     return _sse({"type": "error", "message": message})
 
 
+from fastapi import Request
+
 @app.post("/summarize")
 async def summarize(
-    video: UploadFile = File(...),
+    request: Request,
     receiver_email: str = Form(...),
+    youtube_url: str = Form(None), # أصبح اختياري
 ):
+    # عشان نقدر نستقبل الفايل بس لو اليوزر اختار يرفع
+    form_data = await request.form()
+    video = form_data.get("video")
 
     async def event_stream():
         tmp_dir = tempfile.mkdtemp()
-        video_path = os.path.join(tmp_dir, video.filename)
         audio_path = os.path.join(tmp_dir, "audio.wav")
 
         try:
-            yield _progress(10, "Saving video...")
-            with open(video_path, "wb") as f:
-                while chunk := await video.read(8 * 1024 * 1024):
-                    f.write(chunk)
+            if youtube_url:
+                yield _progress(10, "📥 جاري سحب الصوت من يوتيوب مباشرة...")
+                
+                def download_yt_audio():
+                    # إعدادات yt-dlp لتحميل الصوت فقط بأفضل جودة
+                    ydl_opts = {
+                        'format': 'bestaudio/best',
+                        'outtmpl': audio_path,
+                        'quiet': True,
+                        'postprocessors': [{
+                            'key': 'FFmpegExtractAudio',
+                            'preferredcodec': 'wav',
+                            'preferredquality': '192',
+                        }],
+                    }
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        ydl.download([youtube_url])
 
-            yield _progress(25, "Extracting audio...")
-            await asyncio.to_thread(extract_audio, video_path, audio_path)
+                await asyncio.to_thread(download_yt_audio)
 
-            yield _progress(45, "Transcribing audio (this may take a moment)...")
-            transcript = await asyncio.to_thread(transcribe, audio_path)
+            elif video:
+                yield _progress(10, "💾 جاري حفظ الفيديو المرفوع...")
+                video_path = os.path.join(tmp_dir, video.filename)
+                with open(video_path, "wb") as f:
+                    while chunk := await video.read(8 * 1024 * 1024):
+                        f.write(chunk)
 
-            # ==========================================
-            # DEBUG & SAFETY CHECK
-            # ==========================================
-            print(f"\n--- RAW TRANSCRIPT OUTPUT ---\n{transcript}\n-----------------------------\n")
+                yield _progress(25, "🎵 جاري استخراج الصوت...")
+                await asyncio.to_thread(extract_audio, video_path, audio_path)
             
-            if not transcript or "Error transcribing audio" in transcript:
-                raise Exception(f"Transcription failed. Deepgram returned: {transcript}")
-            # ==========================================
+            else:
+                raise Exception("لا يوجد فيديو أو رابط يوتيوب!")
 
-            yield _progress(65, "Generating summary...")
+            yield _progress(45, "🧠 جاري تفريغ الصوت وتحليل المتحدثين (قد يستغرق دقائق)...")
+            transcript = await asyncio.to_thread(transcribe, audio_path)
+            
+            if not transcript or "Error" in transcript:
+                raise Exception(f"Transcription failed: {transcript}")
 
+            yield _progress(65, "✨ جاري التلخيص بالذكاء الاصطناعي...")
+            
+            
             summary_tokens = []
 
             def on_token(token: str):
