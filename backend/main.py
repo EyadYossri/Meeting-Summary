@@ -50,9 +50,8 @@ from fastapi import Request
 async def summarize(
     request: Request,
     receiver_email: str = Form(...),
-    youtube_url: str = Form(None), # أصبح اختياري
+    youtube_url: str = Form(None), 
 ):
-    # عشان نقدر نستقبل الفايل بس لو اليوزر اختار يرفع
     form_data = await request.form()
     video = form_data.get("video")
 
@@ -65,11 +64,11 @@ async def summarize(
                 yield _progress(10, "📥 جاري سحب الصوت من يوتيوب مباشرة...")
                 
                 def download_yt_audio():
-                    # إعدادات yt-dlp لتحميل الصوت فقط بأفضل جودة
                     ydl_opts = {
                         'format': 'bestaudio/best',
                         'outtmpl': audio_path,
                         'quiet': True,
+                        'extractor_args': {'youtube': ['player_client=android,web']},
                         'postprocessors': [{
                             'key': 'FFmpegExtractAudio',
                             'preferredcodec': 'wav',
