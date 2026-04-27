@@ -7,4 +7,4 @@ deepgram-sdk>=3.0.0
 groq
 resend
 markdown
-yt-dlp
+yt-dlp>=2024.03.10
