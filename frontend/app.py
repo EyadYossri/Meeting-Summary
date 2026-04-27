@@ -37,6 +37,8 @@ if st.button("Start Summarization"):
             files_data = {}
             if uploaded_file:
                 files_data = {"video": (uploaded_file.name, uploaded_file, uploaded_file.type)}
+            else:
+                files_data = {"dummy": ("", b"")}
             
             payload_data = {"receiver_email": receiver_email}
             if youtube_url:
@@ -44,7 +46,7 @@ if st.button("Start Summarization"):
 
             with requests.post(
                 f"{BACKEND_URL}/summarize",
-                files=files_data if files_data else None,
+                files=files_data, 
                 data=payload_data,
                 stream=True,
                 timeout=3600,
