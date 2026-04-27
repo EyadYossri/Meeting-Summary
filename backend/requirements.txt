@@ -6,3 +6,4 @@ python-dotenv
 deepgram-sdk>=3.0.0
 groq
 resend
+markdown
