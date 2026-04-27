@@ -13,7 +13,7 @@ def transcribe(audio_path):
 
         response = deepgram.listen.v1.media.transcribe_file(
             request=buffer_data,
-            model="nova-2",
+            model="nova-3",
             language="ar",
             smart_format=True, 
             diarize=True      
