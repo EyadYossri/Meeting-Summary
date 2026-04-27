@@ -68,7 +68,7 @@ async def summarize(
                         'format': 'bestaudio/best',
                         'outtmpl': audio_path,
                         'quiet': True,
-                        'extractor_args': {'youtube': ['player_client=android,web']},
+                        'cookiefile': 'cookies.txt',
                         'postprocessors': [{
                             'key': 'FFmpegExtractAudio',
                             'preferredcodec': 'wav',
