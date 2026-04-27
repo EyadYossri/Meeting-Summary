@@ -78,6 +78,9 @@ def generate_summary(text, model=DEFAULT_MODEL, stream_callback=None):
         
         final_text_to_summarize = "\n\n--- ملخصات أجزاء الاجتماع ---\n\n".join(chunk_summaries)
 
+    else: 
+        final_text_to_summarize = text
+
     prompt = f"""أنت مساعد ذكاء اصطناعي محترف متخصص في تلخيص الاجتماعات.
 سأقوم بإعطائك إما (تفريغ نصي) أو (مجموعة ملخصات لاجتماع طويل). يحتوي النص على متحدثين بأسماء افتراضية مثل SPEAKER_0.
 
