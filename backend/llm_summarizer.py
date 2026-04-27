@@ -79,7 +79,7 @@ def generate_summary(text, model=DEFAULT_MODEL, stream_callback=None):
 القرارات:
 - (نقاط)
 
-المهام (Action Items):
+المهام:
 - [الاسم الحقيقي أو المسمى الوظيفي المستنتج] → المهمة المطلوبة
 
 ملاحظات هامة:
