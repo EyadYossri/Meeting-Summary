@@ -10,7 +10,7 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 DEFAULT_MODEL = "llama-3.1-8b-instant"
 
-CHUNK_SIZE = 15000 
+CHUNK_SIZE = 4000
 
 
 def summarize_chunk(chunk_text, model=DEFAULT_MODEL):
