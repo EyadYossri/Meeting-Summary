@@ -1,6 +1,7 @@
 import os
 import requests
 import json
+import time
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -52,13 +53,30 @@ def generate_summary(text, model=DEFAULT_MODEL, stream_callback=None):
         chunks = [text[i:i + CHUNK_SIZE] for i in range(0, len(text), CHUNK_SIZE)]
         chunk_summaries = []
         
-        for chunk in chunks:
-            summary = summarize_chunk(chunk, model)
-            chunk_summaries.append(summary)
+        for i, chunk in enumerate(chunks):
+            retries = 3
+            while retries > 0:
+                try:
+                    summary = summarize_chunk(chunk, model)
+                    chunk_summaries.append(summary)
+                    
+                    if i < len(chunks) - 1:
+                        time.sleep(3)
+                        
+                    break
+                    
+                except requests.exceptions.HTTPError as e:
+                    if e.response is not None and e.response.status_code == 429:
+                        print(f"Rate limited on chunk {i+1}. Waiting 10 seconds... (Retries left: {retries})")
+                        time.sleep(10)
+                        retries -= 1
+                    else:
+                        raise e 
+                        
+            if retries == 0:
+                raise Exception("العملية فشلت: تم تجاوز الحد المسموح به لطلبات الذكاء الاصطناعي (Rate Limits). يرجى المحاولة لاحقاً.")
         
         final_text_to_summarize = "\n\n--- ملخصات أجزاء الاجتماع ---\n\n".join(chunk_summaries)
-    else:
-        final_text_to_summarize = text
 
     prompt = f"""أنت مساعد ذكاء اصطناعي محترف متخصص في تلخيص الاجتماعات.
 سأقوم بإعطائك إما (تفريغ نصي) أو (مجموعة ملخصات لاجتماع طويل). يحتوي النص على متحدثين بأسماء افتراضية مثل SPEAKER_0.
