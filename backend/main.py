@@ -3,6 +3,7 @@ import json
 import asyncio
 import tempfile
 import shutil
+import markdown
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
@@ -112,14 +113,29 @@ async def summarize(
             yield _progress(90, "📧 Sending email...")
 
             lines = [l for l in result.split("\n") if l.strip()]
-            title = lines[0].replace("-", "").strip() if lines else "Meeting Summary"
+            title = lines[0].replace("-", "").strip() if lines else "ملخص الاجتماع"
 
-            email_body = (
-                "Dear,\n\n"
-                "I hope you are doing well.\n\n"
-                "Please find below the summary of the recent meeting:\n\n"
-                f"{result}\n\n"
-                "Best regards,\nAI Meeting Assistant"
+            html_result = markdown.markdown(result)
+
+            email_body = f"""
+            <div dir="rtl" style="text-align: right; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; font-size: 16px; line-height: 1.8; color: #333;">
+                <p><strong>أهلاً بك،</strong></p>
+                <p>أتمنى أن تكون بخير.</p>
+                <p>مرفق أدناه الملخص المنظم للاجتماع الأخير:</p>
+                
+                <div style="background-color: #f8f9fa; padding: 25px; border-radius: 8px; border: 1px solid #e9ecef; margin-top: 20px;">
+                    {html_result}
+                </div>
+                
+                <p style="margin-top: 30px; color: #555;">أطيب التحيات،<br><b style="color: #000;">مساعد الذكاء الاصطناعي للاجتماعات 🤖</b></p>
+            </div>
+            """
+
+            await asyncio.to_thread(
+                send_email,
+                receiver_email,
+                title,
+                email_body,
             )
 
             await asyncio.to_thread(
