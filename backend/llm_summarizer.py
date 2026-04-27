@@ -22,35 +22,39 @@ def generate_summary(text, model=DEFAULT_MODEL, stream_callback=None):
     if not GROQ_API_KEY:
         raise ValueError("GROQ_API_KEY is not set. Add it to your .env file.")
 
-    prompt = f"""You are a professional AI meeting assistant.
+    prompt = f"""أنت مساعد ذكاء اصطناعي محترف متخصص في تلخيص الاجتماعات.
+سأقوم بإعطائك تفريغ نصي لاجتماع يحتوي على متحدثين بأسماء افتراضية مثل SPEAKER_0 و SPEAKER_1.
 
-Analyze the following meeting transcript and generate a clear, structured summary.
+مهمتك الأولى (تحليل المتحدثين):
+- حلل سياق الكلام لمعرفة الأسماء الحقيقية للمتحدثين (مثلاً إذا قال أحدهم "أهلاً يا أحمد"، فاستنتج أن المتحدث الآخر هو أحمد).
+- إذا لم يُذكر الاسم صراحةً، خمن مسماه الوظيفي من طبيعة كلامه (مثلاً: مدير المشروع، العميل، المطور، مسؤول الموارد البشرية).
+- إياك أن تستخدم كلمة "SPEAKER" في الملخص النهائي، استبدلها دائماً بالأسماء أو المسميات الوظيفية التي استنتجتها.
 
-Return the output EXACTLY in this format:
+مهمتك الثانية (التلخيص):
+اكتب ملخصاً احترافياً ومنظماً "باللغة العربية" بالصيغة التالية بالضبط:
 
-A short professional title (max 8 words) (Do not use * or " in the title, just write the title without any formatting)
+عنوان احترافي قصير (بحد أقصى 8 كلمات، بدون أي علامات تنصيص أو نجوم)
 
-Key Topics:
-- bullet points
+أهم النقاط:
+- (نقاط)
 
-Decisions:
-- bullet points
+القرارات:
+- (نقاط)
 
-Action Items:
-- [Person if mentioned] → Task
+المهام (Action Items):
+- [الاسم الحقيقي أو المسمى الوظيفي المستنتج] → المهمة المطلوبة
 
-Important Notes:
-- bullet points
+ملاحظات هامة:
+- (نقاط)
 
-Rules:
-- Be concise and professional
-- Do NOT repeat information
-- Do NOT add information not in the transcript
-- Use bullet points only
-- If something is missing, ignore it, do NOT make assumptions and do NOT add it
-- Don't write anything like "Here is a clear, structured summary of the meeting transcript"
+القواعد:
+- كن موجزاً واحترافياً.
+- لا تكرر المعلومات.
+- لا تضف معلومات غير موجودة في النص.
+- إذا لم تتوفر معلومات لقسم معين، تجاهله ولا تخترع بيانات.
+- لا تكتب أي مقدمات أو ردود مثل "إليك الملخص" أو "حسناً"، ابدأ بالعنوان مباشرة.
 
-Meeting Transcript:
+التفريغ النصي للاجتماع:
 {text}"""
 
     use_stream = stream_callback is not None
