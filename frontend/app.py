@@ -7,26 +7,16 @@ BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 st.title("🎥 Meeting Summarizer AI")
 
-input_method = st.radio("Choose input method / طريقة الإدخال:", ["YouTube Link", "Upload Video"])
-
-uploaded_file = None
-youtube_url = ""
-
-if input_method == "Upload Video":
-    uploaded_file = st.file_uploader("Upload Meeting Video", type=["mp4", "mov", "avi"])
-else:
-    youtube_url = st.text_input("Enter YouTube URL (رابط يوتيوب):")
+uploaded_file = st.file_uploader("Upload Meeting Video", type=["mp4", "mov", "avi"])
 
 receiver_email = st.text_input("Enter receiver email:")
 
 if st.button("Start Summarization"):
 
-    if input_method == "Upload Video" and uploaded_file is None:
+    if uploaded_file is None:
         st.error("Please upload a video file.")
-    elif input_method == "YouTube Link" and not youtube_url:
-        st.error("Please enter a YouTube link.")
     elif not receiver_email:
-        st.error("Please enter a receiver email address.")
+        st.error("Please fill in all email fields.")
     else:
         progress = st.progress(0)
         status = st.empty()
@@ -34,22 +24,14 @@ if st.button("Start Summarization"):
         summary_text = ""
 
         try:
-            files_data = {}
-            if uploaded_file:
-                files_data = {"video": (uploaded_file.name, uploaded_file, uploaded_file.type)}
-            else:
-                files_data = {"dummy": ("", b"")}
-            
-            payload_data = {"receiver_email": receiver_email}
-            if youtube_url:
-                payload_data["youtube_url"] = youtube_url
-
             with requests.post(
                 f"{BACKEND_URL}/summarize",
-                files=files_data, 
-                data=payload_data,
+                files={"video": (uploaded_file.name, uploaded_file, uploaded_file.type)},
+                data={
+                    "receiver_email": receiver_email,
+                },
                 stream=True,
-                timeout=3600,
+                timeout=600,
             ) as response:
                 response.raise_for_status()
 
