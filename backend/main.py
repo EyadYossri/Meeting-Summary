@@ -4,7 +4,6 @@ import asyncio
 import tempfile
 import shutil
 import markdown
-import yt_dlp
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
@@ -48,44 +47,20 @@ from fastapi import Request
 
 @app.post("/summarize")
 async def summarize(
-    request: Request,
+    video: UploadFile = File(...),
     receiver_email: str = Form(...),
-    youtube_url: str = Form(None), 
 ):
-    form_data = await request.form()
-    video = form_data.get("video")
 
     async def event_stream():
         tmp_dir = tempfile.mkdtemp()
+        video_path = os.path.join(tmp_dir, video.filename)
         audio_path = os.path.join(tmp_dir, "audio.wav")
 
         try:
-            if youtube_url:
-                yield _progress(10, "📥 جاري سحب الصوت من يوتيوب مباشرة...")
-                
-                def download_yt_audio():
-                    ydl_opts = {
-                        'format': 'bestaudio/best',
-                        'outtmpl': audio_path,
-                        'quiet': True,
-                        'cookiefile': 'cookies.txt',
-                        'postprocessors': [{
-                            'key': 'FFmpegExtractAudio',
-                            'preferredcodec': 'wav',
-                            'preferredquality': '192',
-                        }],
-                    }
-                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                        ydl.download([youtube_url])
-
-                await asyncio.to_thread(download_yt_audio)
-
-            elif video:
-                yield _progress(10, "💾 جاري حفظ الفيديو المرفوع...")
-                video_path = os.path.join(tmp_dir, video.filename)
-                with open(video_path, "wb") as f:
-                    while chunk := await video.read(8 * 1024 * 1024):
-                        f.write(chunk)
+            yield _progress(10, "💾 جاري حفظ الفيديو المرفوع...")
+            with open(video_path, "wb") as f:
+                while chunk := await video.read(8 * 1024 * 1024):
+                    f.write(chunk)
 
                 yield _progress(25, "🎵 جاري استخراج الصوت...")
                 await asyncio.to_thread(extract_audio, video_path, audio_path)
