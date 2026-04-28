@@ -162,60 +162,26 @@ async def send_email_endpoint(req: EmailRequest):
 _FONT_CACHE = "/tmp/_arabic_pdf_font.ttf"
 _FONT_NAME  = "ArabicPDF"
 
-# Well-known system font locations (Linux / macOS / Windows)
-_SYSTEM_FONTS = [
-    "/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf",
-    "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Regular.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
-    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-    "/System/Library/Fonts/Supplemental/Arial.ttf",   # macOS
-    "C:/Windows/Fonts/arial.ttf",                      # Windows
-]
-
-
 def _get_arabic_font_path() -> str:
-    """Return a path to a TTF that supports Arabic, downloading if needed."""
     import urllib.request
-
-    system_fonts = [
-        # Linux (Railway runs Ubuntu)
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-        "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
-        "/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf",
-        "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Regular.ttf",
-        "/usr/share/fonts/opentype/noto/NotoSansArabic-Regular.otf",
-        "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
-        # macOS
-        "/System/Library/Fonts/Supplemental/Arial.ttf",
-        # Windows
-        "C:/Windows/Fonts/arial.ttf",
-    ]
-
-    for path in system_fonts:
-        if os.path.exists(path):
-            return path
-
-    font_urls = [
-        "https://github.com/google/fonts/raw/main/ofl/cairo/Cairo%5Bslnt%2Cwght%5D.ttf",
-        "https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Regular.ttf",
-    ]
 
     if os.path.exists(_FONT_CACHE):
         return _FONT_CACHE
 
+    font_urls = [
+        "https://fonts.gstatic.com/s/cairo/v28/SLXgc1nY6HkvangtZmpcWmhzfH5lWWgcQyyYwMsf8A.ttf",
+        "https://fonts.gstatic.com/s/notosansarabic/v18/nwpxtLGrOAZMl5nJ_wfgRg3DrWFZWsnVBJ_sS6tlqHHFlhQ5l3sQWIHPqzCfyGyvu3CBFQLaig.ttf",
+    ]
+
     for url in font_urls:
         try:
             urllib.request.urlretrieve(url, _FONT_CACHE)
-            if os.path.exists(_FONT_CACHE):
+            if os.path.exists(_FONT_CACHE) and os.path.getsize(_FONT_CACHE) > 10000:
                 return _FONT_CACHE
         except Exception:
             continue
 
-    raise RuntimeError(
-        "No suitable font found. Please add fonts to Railway using a nixpacks.toml file."
-    )
+    raise RuntimeError("Could not download Arabic font. Check Railway network access.")
 
 
 def _ar(text: str) -> str:

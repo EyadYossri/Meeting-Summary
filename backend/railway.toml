@@ -2,13 +2,7 @@
 python = {}
 
 [phases.setup]
-nixPkgs = [
-  "python311",
-  "fontconfig",
-  "dejavu_fonts",
-  "liberation_ttf",
-  "freefont_ttf",
-]
+nixPkgs = ["python311"]
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]
