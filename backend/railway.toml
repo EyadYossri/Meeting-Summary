@@ -2,7 +2,16 @@
 python = {}
 
 [phases.setup]
-nixPkgs = ["...", "ffmpeg"]
+nixPkgs = [
+  "python311",
+  "fontconfig",
+  "dejavu_fonts",
+  "liberation_ttf",
+  "freefont_ttf",
+]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
 
 [start]
 cmd = "ffmpeg -version && uvicorn main:app --host 0.0.0.0 --port $PORT"

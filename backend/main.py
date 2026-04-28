@@ -30,7 +30,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── SSE helpers ───────────────────────────────────────────────────────────────
 
 def _sse(data: dict) -> str:
     return f"data: {json.dumps(data)}\n\n"
@@ -47,21 +46,18 @@ def _done(title: str) -> str:
 def _error(message: str) -> str:
     return _sse({"type": "error", "message": message})
 
-# ── Pydantic models ───────────────────────────────────────────────────────────
 
 class EmailRequest(BaseModel):
     receiver_email: str
     title: str
-    summary: str          # raw markdown summary text
+    summary: str          
 
 class PdfRequest(BaseModel):
     title: str
-    summary: str          # raw markdown summary text
+    summary: str          
 
-# ── Audio formats that can be sent directly to Deepgram ──────────────────────
 PASSTHROUGH_AUDIO_EXTS = {".wav", ".mp3", ".m4a", ".ogg", ".flac", ".webm"}
 
-# ── /summarize ────────────────────────────────────────────────────────────────
 
 @app.post("/summarize")
 async def summarize(
@@ -138,7 +134,6 @@ async def summarize(
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
-# ── /send-email ───────────────────────────────────────────────────────────────
 
 @app.post("/send-email")
 async def send_email_endpoint(req: EmailRequest):
@@ -163,13 +158,9 @@ async def send_email_endpoint(req: EmailRequest):
     return {"status": "sent"}
 
 
-# ── Arabic PDF helpers ────────────────────────────────────────────────────────
 
 _FONT_CACHE = "/tmp/_arabic_pdf_font.ttf"
 _FONT_NAME  = "ArabicPDF"
-
-# Fallback font download (Amiri — free, ~200 KB, excellent Arabic coverage)
-_FONT_URL = "https://raw.githubusercontent.com/aliftype/amiri/main/Amiri-Regular.ttf"
 
 # Well-known system font locations (Linux / macOS / Windows)
 _SYSTEM_FONTS = [
@@ -186,12 +177,45 @@ _SYSTEM_FONTS = [
 def _get_arabic_font_path() -> str:
     """Return a path to a TTF that supports Arabic, downloading if needed."""
     import urllib.request
-    for path in _SYSTEM_FONTS:
+
+    system_fonts = [
+        # Linux (Railway runs Ubuntu)
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf",
+        "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Regular.ttf",
+        "/usr/share/fonts/opentype/noto/NotoSansArabic-Regular.otf",
+        "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
+        # macOS
+        "/System/Library/Fonts/Supplemental/Arial.ttf",
+        # Windows
+        "C:/Windows/Fonts/arial.ttf",
+    ]
+
+    for path in system_fonts:
         if os.path.exists(path):
             return path
-    if not os.path.exists(_FONT_CACHE):
-        urllib.request.urlretrieve(_FONT_URL, _FONT_CACHE)
-    return _FONT_CACHE
+
+    font_urls = [
+        "https://github.com/google/fonts/raw/main/ofl/cairo/Cairo%5Bslnt%2Cwght%5D.ttf",
+        "https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Regular.ttf",
+    ]
+
+    if os.path.exists(_FONT_CACHE):
+        return _FONT_CACHE
+
+    for url in font_urls:
+        try:
+            urllib.request.urlretrieve(url, _FONT_CACHE)
+            if os.path.exists(_FONT_CACHE):
+                return _FONT_CACHE
+        except Exception:
+            continue
+
+    raise RuntimeError(
+        "No suitable font found. Please add fonts to Railway using a nixpacks.toml file."
+    )
 
 
 def _ar(text: str) -> str:
