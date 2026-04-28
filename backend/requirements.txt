@@ -8,3 +8,6 @@ groq
 resend
 markdown
 yt-dlp>=2024.03.10
+reportlab
+arabic-reshaper
+python-bidi

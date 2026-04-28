@@ -6,152 +6,119 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+# ── API config ────────────────────────────────────────────────────────────────
+GEMINI_API_KEY   = os.getenv("GEMINI_API_KEY")
+GEMINI_MODEL     = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_URL       = (
+    "https://generativelanguage.googleapis.com/v1beta/models/"
+    "{model}:streamGenerateContent?alt=sse&key={key}"
+)
 
-DEFAULT_MODEL = "llama-3.1-8b-instant"
-
-CHUNK_SIZE = 4000
-
-
-def summarize_chunk(chunk_text, model=DEFAULT_MODEL):
-    """
-    Map Step: هذه الدالة تقوم بتلخيص كل جزء بشكل سريع بدون تنسيق نهائي
-    للحفاظ على المعلومات من الضياع.
-    """
-    prompt = f"""أنت مساعد ذكاء اصطناعي. سأعطيك جزءاً من تفريغ لاجتماع طويل.
-قم بتلخيص هذا الجزء بدقة، واستخرج أهم النقاط والقرارات والمهام المذكورة فيه. ركز على التفاصيل ولا تضيع أي معلومة مهمة.
-
-النص:
-{chunk_text}"""
-
-    headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.3,
-        "max_tokens": 1024,
-    }
-    response = requests.post(GROQ_URL, headers=headers, json=payload, timeout=120)
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
+MAX_RETRIES           = 5
+RATE_LIMIT_BASE_WAIT  = 30   # seconds — doubles on each retry
 
 
-def generate_summary(text, model=DEFAULT_MODEL, stream_callback=None):
-    if not GROQ_API_KEY:
-        raise ValueError("GROQ_API_KEY is not set. Add it to your .env file.")
+# ── Prompt ────────────────────────────────────────────────────────────────────
 
-    use_stream = stream_callback is not None
-    
-    if len(text) > CHUNK_SIZE:
-        if use_stream:
-            stream_callback("⏳ الميتينج طويل جداً.. جاري تقسيمه وتحليله بالذكاء الاصطناعي (Map-Reduce)...\n\n")
-        
-        chunks = [text[i:i + CHUNK_SIZE] for i in range(0, len(text), CHUNK_SIZE)]
-        chunk_summaries = []
-        
-        for i, chunk in enumerate(chunks):
-            retries = 3
-            while retries > 0:
-                try:
-                    summary = summarize_chunk(chunk, model)
-                    chunk_summaries.append(summary)
-                    
-                    if i < len(chunks) - 1:
-                        time.sleep(3)
-                        
-                    break
-                    
-                except requests.exceptions.HTTPError as e:
-                    if e.response is not None and e.response.status_code == 429:
-                        print(f"Rate limited on chunk {i+1}. Waiting 10 seconds... (Retries left: {retries})")
-                        time.sleep(10)
-                        retries -= 1
-                    else:
-                        raise e 
-                        
-            if retries == 0:
-                raise Exception("العملية فشلت: تم تجاوز الحد المسموح به لطلبات الذكاء الاصطناعي (Rate Limits). يرجى المحاولة لاحقاً.")
-        
-        final_text_to_summarize = "\n\n--- ملخصات أجزاء الاجتماع ---\n\n".join(chunk_summaries)
-
-    else: 
-        final_text_to_summarize = text
-
-    prompt = f"""أنت مساعد ذكاء اصطناعي محترف متخصص في تلخيص الاجتماعات.
-سأقوم بإعطائك إما (تفريغ نصي) أو (مجموعة ملخصات لاجتماع طويل). يحتوي النص على متحدثين بأسماء افتراضية مثل SPEAKER_0.
+def _final_prompt(text: str) -> str:
+    return f"""أنت مساعد ذكاء اصطناعي محترف متخصص في تحليل الاجتماعات بعمق.
+سأقوم بإعطائك تفريغاً نصياً لاجتماع. يحتوي النص على متحدثين بأسماء افتراضية مثل SPEAKER_0.
 
 مهمتك الأولى (تحليل المتحدثين):
-- حلل سياق الكلام لمعرفة الأسماء الحقيقية للمتحدثين (إذا تم ذكرها).
-- إذا لم يُذكر الاسم صراحةً، خمن مسماه الوظيفي.
-- إياك أن تستخدم كلمة "SPEAKER" في الملخص النهائي.
+- استنتج الأسماء الحقيقية أو المسميات الوظيفية بدقة.
 
-مهمتك الثانية (التلخيص):
-اكتب ملخصاً احترافياً ومنظماً "باللغة العربية" بالصيغة التالية بالضبط:
+مهمتك الثانية (التلخيص التفصيلي):
+اكتب ملخصاً "شاملاً وموسعاً" باللغة العربية بالصيغة التالية:
 
-عنوان احترافي قصير (بحد أقصى 8 كلمات، بدون أي علامات تنصيص)
+عنوان احترافي مفصل للابتماع
 
-أهم النقاط:
-- (نقاط)
+سياق الاجتماع وهدفه:
+- (شرح مفصل لسبب الاجتماع والأهداف التي تمت مناقشتها)
 
-القرارات:
-- (نقاط)
+أهم المحاور والنقاط التفصيلية:
+- (قم بتوسيع كل نقطة تم ذكرها، اشرح الحجج والآراء المختلفة التي طرحت بالتفصيل)
 
-المهام:
-- [الاسم الحقيقي أو المسمى الوظيفي المستنتج] → المهمة المطلوبة
+القرارات المتخذة:
+- (ذكر القرار مع شرح بسيط لسبب اتخاذه)
 
-ملاحظات هامة:
-- (نقاط)
+خطة العمل والمهام (جدول تفصيلي):
+- [الاسم/المسمى] ← المهمة: (وصف دقيق للمهمة) | الموعد النهائي (إن وجد)
 
-القواعد:
-- كن موجزاً واحترافياً.
-- لا تكرر المعلومات، ولا تضف معلومات غير موجودة.
-- ابدأ بالعنوان مباشرة ولا تكتب أي مقدمات.
+ملاحظات جانبية وتوصيات:
+- (أي تفاصيل دقيقة أو ملاحظات فنية تم ذكرها في الاجتماع)
+
+القواعد الجديدة:
+- "تجنب الإيجاز الشديد"؛ قدم تفاصيل كافية تجعل من يقرأ الملخص يشعر كأنه حضر الاجتماع.
+- حافظ على التنسيق والاحترافية.
+- ابدأ بالعنوان مباشرة.
+- لا تستخدم كلمة "Speaker" في الملخص النهائي، استبدلها بالأسماء الحقيقية أو الألقاب المستنتجة.
 
 النص المطلوب تلخيصه:
-{final_text_to_summarize}"""
+{text}"""
 
-    headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
-        "Content-Type": "application/json",
-    }
+
+# ── Core call ─────────────────────────────────────────────────────────────────
+
+def generate_summary(text: str, model: str | None = None, stream_callback=None) -> str:
+    if not GEMINI_API_KEY:
+        raise ValueError("GEMINI_API_KEY غير موجود. أضفه في ملف .env الخاص بك.")
+
+    chosen_model = model or GEMINI_MODEL
+    url = GEMINI_URL.format(model=chosen_model, key=GEMINI_API_KEY)
 
     payload = {
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.3,
-        "max_tokens": 1024,
-        "stream": use_stream,
+        "contents": [{"parts": [{"text": _final_prompt(text)}]}],
+        "generationConfig": {
+            "temperature":     0.3,
+            "maxOutputTokens": 8192,
+        },
     }
 
-    response = requests.post(
-        GROQ_URL,
-        headers=headers,
-        json=payload,
-        stream=use_stream,
-        timeout=120,
-    )
-    response.raise_for_status()
+    # POST with exponential back-off on 429
+    wait = RATE_LIMIT_BASE_WAIT
+# Inside your generate_summary function, update the exception handling:
 
-    if use_stream:
-        full_response = ""
-        for line in response.iter_lines():
-            if not line:
-                continue
-            raw = line.decode("utf-8") if isinstance(line, bytes) else line
-            if not raw.startswith("data:"):
-                continue
-            data_str = raw[len("data:"):].strip()
-            if data_str == "[DONE]":
-                break
+    for attempt in range(1, MAX_RETRIES + 1): 
+        try: 
+            response = requests.post(url, json=payload, stream=True, timeout=180) 
+            response.raise_for_status() 
+            break 
+        except requests.exceptions.HTTPError as exc: 
+            code = exc.response.status_code if exc.response is not None else 0 
+            
+            # Catch both Rate Limits (429) and Server Overloads (503/500)
+            if code in [429, 500, 502, 503, 504]: 
+                if attempt == MAX_RETRIES: 
+                    raise Exception(f"Failed after {MAX_RETRIES} attempts due to Server Error {code}.")
+                
+                print(f"[Gemini {code}] Server busy. Waiting {wait}s (Attempt {attempt}/{MAX_RETRIES})") 
+                time.sleep(wait) 
+                wait = min(wait * 2, 300) 
+            else: 
+                raise
+
+    # Stream response
+    full = ""
+    for raw_line in response.iter_lines():
+        if not raw_line:
+            continue
+        line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
+        if not line.startswith("data:"):
+            continue
+        data_str = line[len("data:"):].strip()
+        if not data_str or data_str == "[DONE]":
+            continue
+        try:
             chunk = json.loads(data_str)
-            token = chunk["choices"][0]["delta"].get("content", "")
-            if token:
-                full_response += token
+            token = chunk["candidates"][0]["content"]["parts"][0]["text"]
+        except (json.JSONDecodeError, KeyError, IndexError):
+            continue
+        if token:
+            full += token
+            if stream_callback:
                 stream_callback(token)
-        return full_response
-    else:
-        return response.json()["choices"][0]["message"]["content"]
+
+    if not full:
+        raise ValueError("Gemini أعاد استجابة فارغة. يرجى المحاولة مرة أخرى.")
+
+    return full
