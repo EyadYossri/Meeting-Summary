@@ -14,11 +14,21 @@ from transcriber import transcribe
 from llm_summarizer import generate_summary
 from email_sender import send_email
 
+from fastapi.middleware.cors import CORSMiddleware
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="Meeting Summarizer API", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ── SSE helpers ───────────────────────────────────────────────────────────────
 
